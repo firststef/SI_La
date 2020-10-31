@@ -1,0 +1,4 @@
+
+[submodule "tema1/lspy"]
+	path = tema1/lspy
+	url = git@github.com:firststef/LSPy.git
