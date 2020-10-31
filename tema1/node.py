@@ -1,12 +1,11 @@
-import base64
-from socket import socket, AF_INET, SOCK_STREAM
 from abc import ABC, abstractmethod
+from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 from typing import Callable
 
-from node_net_dns import NodeDNS
-from lspy import RPC
 from conn_wrapper import ConnWrapper
+from lspy import RPC
+from node_net_dns import NodeDNS
 
 
 class Node(ABC):
@@ -22,27 +21,25 @@ class Node(ABC):
     def who(self) -> str:
         pass
 
-    def request_from(self, node_name: str, request: str, r_bytes: bytes):
+    def request_from(self, node_name: str, request: str,  message: str):
         ss = socket(AF_INET, SOCK_STREAM)
         addr = self.dns.get_address_for(node_name)
         ss.connect(addr)
         print(self.who() + ' connected to ', addr)
         conn = ConnWrapper(ss)
-        ss.sendall(r_bytes)
-        return None
         rpc = RPC(stdin=conn, stdout=conn, initialize=False)
-        res = rpc(request, str(base64.b64encode(r_bytes)))
+        res = rpc(request, message)
         print(self.who() + ' got response ', res)
-        ss.close()
+        rpc.watchdog.stop()
         return res
 
-    def send_to(self, node_name: str, request: str, r_bytes: bytes):
+    def send_to(self, node_name: str, request: str, message: str):
         """ Alias to request_from """
-        self.request_from(node_name, request, r_bytes)
+        self.request_from(node_name, request, message)
 
-    def respond_to(self, node_name: str, request: str, r_bytes: bytes):
+    def respond_to(self, node_name: str, request: str,  message: str):
         """ Alias to request_from """
-        return self.request_from(node_name, request, r_bytes)
+        return self.request_from(node_name, request,  message)
 
     def register_dns(self, dns: NodeDNS):
         self.dns = dns
@@ -59,10 +56,17 @@ class Node(ABC):
         self.wait_s.listen()
         self.conn, addr = self.wait_s.accept()
         print(self.who() + ' connected to ', addr)
-        self.rpc = RPC(self)
-        #self.rpc.watchdog.stop()  # this might be too soon
+        self.wrp = ConnWrapper(self.conn)
+        self.rpc = RPC(target=self, stdin=self.wrp, stdout=self.wrp, initialize=False)
 
     @abstractmethod
     def serve(self):
         pass
 
+
+def closeafter(func):
+    def wrap(self, *args, **kwargs):
+        ret = func(self, *args, **kwargs)
+        self.rpc.watchdog.stop()
+        return ret
+    return wrap

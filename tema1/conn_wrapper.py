@@ -4,7 +4,6 @@ class ConnWrapper:
         self.pos = 1
 
     def read(self, num):
-        self.pos += num
         return self.socket.recv(num)
 
     def write(self, s):
@@ -17,6 +16,7 @@ class ConnWrapper:
         return True
 
     def tell(self):
+        self.pos += 1
         return self.pos
 
     def seek(self, num):

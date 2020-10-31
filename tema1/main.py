@@ -1,6 +1,6 @@
 import base64
 
-from node import Node
+from node import Node, closeafter
 from node_net import NodeNet
 
 
@@ -10,9 +10,12 @@ class NodeA(Node):
 
     def serve(self):
         self.wait_one(lambda x: x)
+        self.wait_one(lambda x: x)
 
+    @closeafter
     def wow(self, param):
-        print("wow", base64.b64decode(param))
+        print("wow", param)
+        return 1
 
 
 class NodeB(Node):
@@ -20,10 +23,11 @@ class NodeB(Node):
         return "B"
 
     def serve(self):
-        self.send_to("A", "wow", 'w'.encode('utf-8'))
+        self.send_to("A", "wow", 'w')
+        self.send_to("A", "wow", 'w')
 
 
-class NodeK(Node):
+class NodeKM(Node):
     def who(self) -> str:
         return "K"
 
@@ -35,7 +39,7 @@ if __name__ == '__main__':
     n = NodeNet()
     a = n.create_node(NodeA)
     b = n.create_node(NodeB)
-    k = n.create_node(NodeK)
+    k = n.create_node(NodeKM)
 
     a.start()
     b.start()
