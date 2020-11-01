@@ -21,25 +21,28 @@ class Node(ABC):
     def who(self) -> str:
         pass
 
-    def request_from(self, node_name: str, request: str,  message: str):
+    def _request(self, node_name: str, request: str, *args, **kwargs):
         ss = socket(AF_INET, SOCK_STREAM)
         addr = self.dns.get_address_for(node_name)
         ss.connect(addr)
-        print(self.who() + ' connected to ', addr)
+        # print(self.who() + ' connected to ', addr)
         conn = ConnWrapper(ss)
         rpc = RPC(stdin=conn, stdout=conn, initialize=False)
-        res = rpc(request, message)
-        print(self.who() + ' got response ', res)
+        res = rpc(request, args, callback=kwargs.pop('callback') if 'callback' in kwargs else None) if args \
+            else rpc(request, callback=kwargs.pop('callback') if 'callback' in kwargs else None)
+        print('resolved request ' + request)
         rpc.watchdog.stop()
         return res
 
-    def send_to(self, node_name: str, request: str, message: str):
-        """ Alias to request_from """
-        self.request_from(node_name, request, message)
+    def send_to(self, node_name: str, request: str, *args, **kwargs):
+        """ Alias to request """
+        self._request(node_name, request, *args,  **kwargs)
 
-    def respond_to(self, node_name: str, request: str,  message: str):
-        """ Alias to request_from """
-        return self.request_from(node_name, request,  message)
+    def request_from(self, node_name: str, request: str, *args, **kwargs):
+        """ Alias to request """
+        res = self._request(node_name, request, *args,  **kwargs)
+        print(self.who() + ' got back ' + str(res))
+        return res
 
     def register_dns(self, dns: NodeDNS):
         self.dns = dns
@@ -50,12 +53,12 @@ class Node(ABC):
     def join(self):
         self.p.join()
 
-    def wait_one(self, cb: Callable):
+    def wait_one(self):
         self.wait_s = socket(AF_INET, SOCK_STREAM)
         self.wait_s.bind(self.dns.get_address_for(self.who()))
         self.wait_s.listen()
         self.conn, addr = self.wait_s.accept()
-        print(self.who() + ' connected to ', addr)
+        # print(self.who() + ' connected to ', addr)
         self.wrp = ConnWrapper(self.conn)
         self.rpc = RPC(target=self, stdin=self.wrp, stdout=self.wrp, initialize=False)
 
@@ -67,6 +70,7 @@ class Node(ABC):
 def closeafter(func):
     def wrap(self, *args, **kwargs):
         ret = func(self, *args, **kwargs)
+        # print('Released watch dog for ' + self.who())
         self.rpc.watchdog.stop()
         return ret
     return wrap
