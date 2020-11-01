@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 from typing import Callable
+from time import sleep
 
 from conn_wrapper import ConnWrapper
 from lspy import RPC
@@ -24,19 +25,24 @@ class Node(ABC):
     def _request(self, node_name: str, request: str, *args, **kwargs):
         ss = socket(AF_INET, SOCK_STREAM)
         addr = self.dns.get_address_for(node_name)
+        print(self.who() + ' trying to connect to ' + node_name)
+        # sleep(1)
         ss.connect(addr)
-        # print(self.who() + ' connected to ', addr)
         conn = ConnWrapper(ss)
-        rpc = RPC(stdin=conn, stdout=conn, initialize=False)
-        res = rpc(request, args, callback=kwargs.pop('callback') if 'callback' in kwargs else None) if args \
-            else rpc(request, callback=kwargs.pop('callback') if 'callback' in kwargs else None)
-        print('resolved request ' + request)
-        rpc.watchdog.stop()
+        block = 0.1
+        if 'block' in kwargs:
+            block = kwargs.pop('block')
+        rpc = RPC(stdin=conn, stdout=conn, block=block, initialize=False)
+        res = rpc(request,  *args, **kwargs)
+        print(self.who() + ' resolved request ' + request)
+        if hasattr(rpc, 'watchdog'):
+            print('CLIENT closed watchdog for request ' + request)
+            rpc.watchdog.stop()
         return res
 
     def send_to(self, node_name: str, request: str, *args, **kwargs):
         """ Alias to request """
-        self._request(node_name, request, *args,  **kwargs)
+        self._request(node_name, request, *args, **kwargs)
 
     def request_from(self, node_name: str, request: str, *args, **kwargs):
         """ Alias to request """
@@ -57,8 +63,9 @@ class Node(ABC):
         self.wait_s = socket(AF_INET, SOCK_STREAM)
         self.wait_s.bind(self.dns.get_address_for(self.who()))
         self.wait_s.listen()
+        print(self.who() + ' waiting for connection')
         self.conn, addr = self.wait_s.accept()
-        # print(self.who() + ' connected to ', addr)
+        print(self.who() + ' accepted connection')
         self.wrp = ConnWrapper(self.conn)
         self.rpc = RPC(target=self, stdin=self.wrp, stdout=self.wrp, initialize=False)
 
@@ -71,6 +78,11 @@ def closeafter(func):
     def wrap(self, *args, **kwargs):
         ret = func(self, *args, **kwargs)
         # print('Released watch dog for ' + self.who())
-        self.rpc.watchdog.stop()
+        print('HOST closing watchdog for request ' + func.__name__)
+        try:
+            self.rpc.watchdog.stop()
+        except:
+            pass
+        print('HOST closed watchdog for request ' + func.__name__)
         return ret
     return wrap

@@ -8,7 +8,7 @@ TNode = TypeVar("TNode", bound=Node)
 class NodeNet:
     def __init__(self):
         self.dns = NodeDNS()
-        self.port_range = [p for p in range(23000, 23003)]
+        self.port_range = [p for p in range(24000, 24003)]
 
     def create_node(self, node_type: Type[TNode], *args, **kwargs) -> TNode:
         port = self.port_range.pop(0)

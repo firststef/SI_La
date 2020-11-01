@@ -4,10 +4,16 @@ class ConnWrapper:
         self.pos = 1
 
     def read(self, num):
-        return self.socket.recv(num)
+        try:
+            return self.socket.recv(num)
+        except:
+            raise OSError
 
     def write(self, s):
-        self.socket.sendall(s)
+        try:
+            self.socket.sendall(s)
+        except:
+            return
 
     def flush(self):
         pass
