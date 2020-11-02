@@ -36,7 +36,7 @@ class Node(ABC):
         res = rpc(request,  *args, **kwargs)
         print(self.who() + ' resolved request ' + request)
         if hasattr(rpc, 'watchdog'):
-            print('CLIENT closed watchdog for request ' + request)
+            # print('CLIENT closed watchdog for request ' + request)
             rpc.watchdog.stop()
         return res
 
@@ -78,11 +78,11 @@ def closeafter(func):
     def wrap(self, *args, **kwargs):
         ret = func(self, *args, **kwargs)
         # print('Released watch dog for ' + self.who())
-        print('HOST closing watchdog for request ' + func.__name__)
+        # print('HOST closing watchdog for request ' + func.__name__)
         try:
             self.rpc.watchdog.stop()
         except:
             pass
-        print('HOST closed watchdog for request ' + func.__name__)
+        # print('HOST closed watchdog for request ' + func.__name__)
         return ret
     return wrap
