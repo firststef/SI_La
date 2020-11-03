@@ -1,6 +1,7 @@
 from node import Node
 from node_net_dns import NodeDNS
 from typing import Type, TypeVar
+from sys import platform
 
 TNode = TypeVar("TNode", bound=Node)
 
@@ -15,6 +16,6 @@ class NodeNet:
         if not port:
             raise IndexError("Could not assign new node port")
         node = node_type(*args, **kwargs)
-        self.dns.register_node(node.who(), ('', port))
+        self.dns.register_node(node.who(), ('127.0.0.1' if platform.startswith('win') else '', port))
         node.register_dns(self.dns)
         return node
