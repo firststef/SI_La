@@ -25,7 +25,6 @@ class Node(ABC):
     def _request(self, node_name: str, request: str, *args, **kwargs):
         ss = socket(AF_INET, SOCK_STREAM)
         print(self.who() + ' trying to connect to ' + node_name)
-        sleep(0.5)
         while True:
             try:
                 ss.connect(self.dns.get_address_for(node_name))
