@@ -9,3 +9,6 @@ class NodeDNS:
         if node_name in self.record:
             raise Exception("This server is already registered")
         self.record[node_name] = address
+
+    def inc(self, node_name):
+        self.record[node_name] = (self.record[node_name][0], self.record[node_name][1] + 3)

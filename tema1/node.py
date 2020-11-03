@@ -24,10 +24,14 @@ class Node(ABC):
 
     def _request(self, node_name: str, request: str, *args, **kwargs):
         ss = socket(AF_INET, SOCK_STREAM)
-        addr = self.dns.get_address_for(node_name)
         print(self.who() + ' trying to connect to ' + node_name)
-        # sleep(1)
-        ss.connect(addr)
+        sleep(2)
+        while True:
+            try:
+                ss.connect(self.dns.get_address_for(node_name))
+                break
+            except:
+                sleep(0.1)
         conn = ConnWrapper(ss)
         block = 0.1
         if 'block' in kwargs:
@@ -54,6 +58,7 @@ class Node(ABC):
         self.dns = dns
 
     def start(self):
+        self.p.daemon = True
         self.p.start()
 
     def join(self):
@@ -61,7 +66,13 @@ class Node(ABC):
 
     def wait_one(self):
         self.wait_s = socket(AF_INET, SOCK_STREAM)
-        self.wait_s.bind(self.dns.get_address_for(self.who()))
+        while True:
+            try:
+                self.wait_s.bind(self.dns.get_address_for(self.who()))
+                break
+            except:
+                self.dns.inc(self.who())
+                sleep(0.1)
         self.wait_s.listen()
         print(self.who() + ' waiting for connection')
         self.conn, addr = self.wait_s.accept()

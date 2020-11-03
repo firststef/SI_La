@@ -132,6 +132,7 @@ class NodeB(Node):
         print(decrypt(file, self.SECRET_KEY))
 
         log('END OF COMMUNICATION')
+        exit(0)
 
 
 class NodeKM(Node):
@@ -176,4 +177,3 @@ if __name__ == '__main__':
     a.join()
     b.join()
     km.join()
-    exit(0)
