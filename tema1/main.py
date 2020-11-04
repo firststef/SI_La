@@ -14,6 +14,8 @@ IV = b'\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
 PROTOCOL_ECB = b'ECB'
 PROTOCOL_OFB = b'OFB'
 
+# ENCRYPTION FUNCTIONS -----------------------------------------------------------------------------------------------
+
 
 def encrypt(message, key: bytes):
     """ Encrypts a message using AES - CBC """
@@ -63,6 +65,8 @@ def ofb_encrypt_decrypt(text, key: bytes, chunk_size, iv):
         out_chunks.append(xor_bytestrings(ciphertext, chunk))
     return b''.join(out_chunks), len(out_chunks[0])
 
+# NODES --------------------------------------------------------------------------------------------------------------
+
 
 class NodeA(Node):
     def __init__(self, m_o):
@@ -89,6 +93,7 @@ class NodeA(Node):
 
     @closeafter
     def begin(self):
+        """ This method starts the communication with B for transferring the file """
         # from 5
         self.SECRET_KEY = decrypt(self.ENCRYPTED_KEY, K3)
 
@@ -117,12 +122,11 @@ class NodeB(Node):
     def serve(self):
         log('1.5_ WAITING FOR NODE A TO ESTABLISH PROTOCOL')
         self.wait_one()
+
         log('3_ NODE B REQUESTS K1 FROM NODE KM')
         self.ENCRYPTED_KEY = self.request_from("KM", "get_key", encrypt("K1" if self.protocol == PROTOCOL_ECB else "K2", K3))
-        log('5_ NODE B DECRYPTS K1 FROM KM')
-        self.begin()
 
-    def begin(self):
+        log('5_ NODE B DECRYPTS K1 FROM KM')
         self.SECRET_KEY = decrypt(self.ENCRYPTED_KEY, K3)
 
         log('6_ NODE B NOTIFIES NODE A TO BEGIN COMMUNICATION')
@@ -133,10 +137,12 @@ class NodeB(Node):
 
     @closeafter
     def establish_protocol(self, protocol):
+        """ This method saves the chosen mode of encryption for transferring the file """
         self.protocol = decrypt(protocol, K3)
 
     @closeafter
     def file_transfer(self, file, chunk_size):
+        """ This method receives the file from node A in an encrypted form and as a parameter"""
         log('10_ NODE B DECRYPTS THE FILE')
         if self.protocol == PROTOCOL_ECB:
             print("FINAL RESULT: ", ecb_decrypt(file, self.SECRET_KEY, chunk_size))
@@ -166,6 +172,7 @@ class NodeKM(Node):
 
     @closeafter
     def get_key(self, message):
+        """ This method retrieves the keys for the nodes from the key manager """
         log('4_ NODE KM ENCRYPTS K1 OR K2 AND SENDS THEM TO THE NODES')
         key_t = decrypt(message, K3).decode('utf-8')
         if key_t == "K1":

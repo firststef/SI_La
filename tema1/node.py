@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
-from typing import Callable
 from time import sleep
 
 from conn_wrapper import ConnWrapper
