@@ -163,3 +163,13 @@ class TestEncryptDecrypt(unittest.TestCase):
         enc, chunk_size = main.ofb_encrypt_decrypt(text, key, main.OFB_BLOCK_SIZE, iv)
         self.assertEqual(main.ofb_encrypt_decrypt(enc, key, chunk_size, iv)[0], text)
 ```
+
+## Instalare
+
+Veti avea nevoie de Python 3.x. Ca dependinta trebuie sa va instalati `pycryptodome`:
+```
+pip install pycryptodome
+# Rulati cu
+export PYTHONPATH=${PWD}:${PWD}/lspy
+python3 main.py
+```
