@@ -1,20 +1,22 @@
 from logger import disable_logging, log
+import lspy
 from node import Node, closeafter
 from node_net import NodeNet
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
 
-K3 = b'eu_sunt_cheia_K3'
+K3 = b'eu_sunt_cheia_K3'  # K3 is public to A, B, KM
 BLOCK_SIZE = 16
 ECB_BLOCK_SIZE = 32
+OFB_BLOCK_SIZE = 32
+IV = b'\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
+PROTOCOL_ECB = b'ECB'
+PROTOCOL_OFB = b'OFB'
 
 
 def encrypt(message, key: bytes):
-    """
-    Encrypts a message using AES - CBC
-    :return:
-    """
+    """ Encrypts a message using AES - CBC """
     if isinstance(message, str):
         message = message.encode()
     key = pad(key, 16)
@@ -24,38 +26,42 @@ def encrypt(message, key: bytes):
 
 
 def decrypt(cr: bytes, key: bytes):
-    """
-    Encrypts a message using AES - CBC
-    :return:
-    """
+    """ Decrypts a message using AES - CBC """
     key = pad(key, 16)
     cip = AES.new(key, AES.MODE_ECB)
     return unpad(cip.decrypt(cr), 16)
 
 
 def split_into_chunks(text, chunk_size):
+    """ Splits the text into pieces of the same size """
     return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
-def xor_bytestrings():pass
+def xor_bytestrings(str1, str2):
+    """ Apply xor to bytestrings """
+    return bytes(aa ^ bb for aa, bb in zip(str1, str2))
 
 
 def ecb_encrypt(text, key: bytes, chunk_size):
+    pad(text, chunk_size)
     chunks = split_into_chunks(text, chunk_size)
-    return [encrypt(chunk, key) for chunk in chunks]
+    encrypted_chunks = [encrypt(chunk, key) for chunk in chunks]
+    return b''.join(encrypted_chunks), len(encrypted_chunks[0])
 
 
-def ecb_decrypt(chunks: list, key):
-    return [decrypt(chunk, key) for chunk in chunks]
+def ecb_decrypt(file, key, chunk_size):
+    chunks = split_into_chunks(file, chunk_size)
+    return b''.join([decrypt(chunk, key) for chunk in chunks])
 
 
 def ofb_encrypt_decrypt(text, key: bytes, chunk_size, iv):
     chunks = split_into_chunks(text, chunk_size)
-    ciphertext = pad(iv, 32)
+    ciphertext = pad(iv, OFB_BLOCK_SIZE)
     out_chunks = []
     for chunk in chunks:
-        ciphertext = encrypt(ciphertext, key)[:32]
-        out_chunks.append()
+        ciphertext = encrypt(ciphertext, key)[:OFB_BLOCK_SIZE]
+        out_chunks.append(xor_bytestrings(ciphertext, chunk))
+    return b''.join(out_chunks), len(out_chunks[0])
 
 
 class NodeA(Node):
@@ -73,7 +79,7 @@ class NodeA(Node):
         self.send_to("B", "establish_protocol", encrypt(self.m_o, K3))
 
         log('2_ NODE A REQUESTS K1/K2 FROM NODE KM')
-        self.ENCRYPTED_KEY = self.request_from("KM", "get_key", encrypt("K1" if self.m_o == "ECB" else "K2", K3))
+        self.ENCRYPTED_KEY = self.request_from("KM", "get_key", encrypt("K1" if self.m_o == PROTOCOL_ECB else "K2", K3))
 
         log('5_ NODE A DECRYPTS K1 FROM KM')
         # delayed to begin phase
@@ -89,10 +95,13 @@ class NodeA(Node):
         log('7_ NODE A BEGINS COMMUNICATION ')
 
         log('8_ NODE A ENCRYPTS A FILE USING AES AND THE ESTABLISHED M.O.')
-        file = b"file12"
+        file = open('files/a.txt', 'rb').read()
 
         log('9_ NODE A SENDS THE ENCRYPTED FILE TO B')
-        self.send_to("B", "file_transfer", encrypt(file, self.SECRET_KEY), callback=None, block=0)
+        if self.m_o == PROTOCOL_ECB:
+            self.send_to("B", "file_transfer", *ecb_encrypt(file, self.SECRET_KEY, ECB_BLOCK_SIZE), callback=None, block=0)
+        else:
+            self.send_to("B", "file_transfer", *ofb_encrypt_decrypt(file, self.SECRET_KEY, OFB_BLOCK_SIZE, IV), callback=None, block=0)
 
 
 class NodeB(Node):
@@ -109,7 +118,7 @@ class NodeB(Node):
         log('1.5_ WAITING FOR NODE A TO ESTABLISH PROTOCOL')
         self.wait_one()
         log('3_ NODE B REQUESTS K1 FROM NODE KM')
-        self.ENCRYPTED_KEY = self.request_from("KM", "get_key", encrypt("K1" if self.protocol == "ECB" else "K2", K3))
+        self.ENCRYPTED_KEY = self.request_from("KM", "get_key", encrypt("K1" if self.protocol == PROTOCOL_ECB else "K2", K3))
         log('5_ NODE B DECRYPTS K1 FROM KM')
         self.begin()
 
@@ -119,17 +128,22 @@ class NodeB(Node):
         log('6_ NODE B NOTIFIES NODE A TO BEGIN COMMUNICATION')
         self.send_to("A", "begin", callback=None, block=0)
 
-        log('9.5_ NODE B RECEIVES THE FILE FROM A')
+        log('6.5_ NODE B WAITS THE FILE FROM A')
         self.wait_one()  # or more
 
     @closeafter
     def establish_protocol(self, protocol):
-        self.protocol = protocol
+        self.protocol = decrypt(protocol, K3)
 
     @closeafter
-    def file_transfer(self, file):
+    def file_transfer(self, file, chunk_size):
         log('10_ NODE B DECRYPTS THE FILE')
-        print(decrypt(file, self.SECRET_KEY))
+        if self.protocol == PROTOCOL_ECB:
+            print("FINAL RESULT: ", ecb_decrypt(file, self.SECRET_KEY, chunk_size))
+        elif self.protocol == PROTOCOL_OFB:
+            print("FINAL RESULT: ", ofb_encrypt_decrypt(file, self.SECRET_KEY, OFB_BLOCK_SIZE, IV))
+        else:
+            raise Exception("Protocol is invalid")
 
         log('END OF COMMUNICATION')
         exit(0)
@@ -163,12 +177,15 @@ class NodeKM(Node):
 
 
 if __name__ == '__main__':
-    #disable_logging()
+    # disable_logging()
+    lspy.ENABLE_LOGGING = True
 
     n = NodeNet()
-    a = n.create_node(NodeA, "ECB")
+    a = n.create_node(NodeA, PROTOCOL_OFB)
     b = n.create_node(NodeB)
     km = n.create_node(NodeKM)
+
+    log('THE FILE THAT WE HAVE TO SEND IS: ', '"' + open('files/a.txt', 'r').read() + '"')
 
     a.start()
     b.start()

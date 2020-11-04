@@ -1,4 +1,7 @@
+from threading import Lock
+
 enabled = True
+mutex = Lock()
 
 
 def enable_logging():
@@ -13,4 +16,6 @@ def disable_logging():
 
 def log(*args, **kwargs):
     if enabled:
+        mutex.acquire()
         print(*args, **kwargs)
+        mutex.release()

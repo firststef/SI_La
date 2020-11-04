@@ -24,8 +24,7 @@ class Node(ABC):
 
     def _request(self, node_name: str, request: str, *args, **kwargs):
         ss = socket(AF_INET, SOCK_STREAM)
-        print(self.who() + ' trying to connect to ' + node_name)
-        sleep(0.5)
+        # print(self.who() + ' trying to connect to ' + node_name)
         while True:
             try:
                 ss.connect(self.dns.get_address_for(node_name))
@@ -38,7 +37,7 @@ class Node(ABC):
             block = kwargs.pop('block')
         rpc = RPC(stdin=conn, stdout=conn, block=block, initialize=False)
         res = rpc(request,  *args, **kwargs)
-        print(self.who() + ' resolved request ' + request)
+        # print(self.who() + ' resolved request ' + request)
         if hasattr(rpc, 'watchdog'):
             # print('CLIENT closed watchdog for request ' + request)
             rpc.watchdog.stop()
@@ -51,7 +50,6 @@ class Node(ABC):
     def request_from(self, node_name: str, request: str, *args, **kwargs):
         """ Alias to request """
         res = self._request(node_name, request, *args,  **kwargs)
-        print(self.who() + ' got back ' + str(res))
         return res
 
     def register_dns(self, dns: NodeDNS):
@@ -74,9 +72,9 @@ class Node(ABC):
                 self.dns.inc(self.who())
                 sleep(0.1)
         self.wait_s.listen()
-        print(self.who() + ' waiting for connection')
+        # print(self.who() + ' waiting for connection')
         self.conn, addr = self.wait_s.accept()
-        print(self.who() + ' accepted connection')
+        # print(self.who() + ' accepted connection')
         self.wrp = ConnWrapper(self.conn)
         self.rpc = RPC(target=self, stdin=self.wrp, stdout=self.wrp, initialize=False)
 
