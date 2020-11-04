@@ -1,5 +1,10 @@
 # Tema 1
 
+ATENTIE! Pentru eficienta si ca sa rulati programul fara configuratii dificile va rog vizitati adresa:
+<https://repl.it/@firststef/SILa> .La aceasta adresa este configurat proiectul pe un vm online care poate afisa si rula codul sursa.
+
+![img](./ss.PNG)
+
 Problema pe care vrem sa o rezolvam se rezuma la **simularea unui proces de comunicare criptat in contextul trimiterii a unui fisier**.
 
 Scopul nostru e sa trimitem un anumit fisier, care este afisat la inceput iar noi la final vom verifica vizual ca este acelasi continut cu ce vom primi in nodul B.
